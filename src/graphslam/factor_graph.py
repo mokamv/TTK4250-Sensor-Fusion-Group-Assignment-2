@@ -10,6 +10,7 @@ import gtsam
 import numpy as np
 
 from graphslam.config import SlamConfig
+from scipy.linalg import block_diag
 
 # ---------------------------------------------------------------------------
 # Noise models  (given)
@@ -145,7 +146,7 @@ def predict_measurement(
         d z / d x_k, in the tangent space at ``pose``.
     H_landmark : np.ndarray, shape=(2, 2)
         d z / d m_j.
-    """  
+    """
     H_range_pose = np.zeros((1, 3), order="F")
     H_range_landmark = np.zeros((1, 2), order="F")
     H_bearing_pose = np.zeros((1, 3), order="F")
@@ -153,9 +154,9 @@ def predict_measurement(
 
     r = pose.range(landmark, H_range_pose, H_range_landmark)
     bearing = pose.bearing(landmark, H_bearing_pose, H_bearing_landmark).theta()
-    
+
     z = np.array([r, bearing])
-    H_pose = np.vstack((H_range_pose, H_bearing_pose))              # (2, 3)
+    H_pose = np.vstack((H_range_pose, H_bearing_pose))  # (2, 3)
     H_landmark = np.vstack((H_range_landmark, H_bearing_landmark))  # (2, 2)
 
     return z, H_pose, H_landmark
@@ -205,8 +206,16 @@ def assemble_joint_covariance(
     np.ndarray, shape=(3 + 2n, 3 + 2n)
         P, whose block (i, j) is the covariance between ``keys[i]`` and ``keys[j]``.
     """
-    # TODO(e): fill P block by block from joint_marginal.at(key_i, key_j).
-    raise NotImplementedError("Task 1 (e)")
+    dims = [joint_marginal.at(k, k).shape[0] for k in keys]
+    P = np.zeros((sum(dims), sum(dims)))
+    offsets = np.concatenate(([0], np.cumsum(dims)[:-1]))
+
+    for i, key_i in enumerate(keys):
+        for j, key_j in enumerate(keys):
+            oi, oj = offsets[i], offsets[j]
+            P[oi : oi + dims[i], oj : oj + dims[j]] = joint_marginal.at(key_i, key_j)
+
+    return P
 
 
 # ---------------------------------------------------------------------------
@@ -239,8 +248,14 @@ def innovation_covariance(
     np.ndarray, shape=(2n, 2n)
         The innovation covariance ``S``.
     """
-    # TODO(f): build the stacked H, build the block-diagonal R, and form S.
-    raise NotImplementedError("Task 1 (f)")
+    n = len(jacobians_pose)
+    H = np.zeros((2 * n, 3 + 2 * n))
+    for i in range(n):
+        H[2 * i : 2 * i + 2, 0:3] = jacobians_pose[i]
+        H[2 * i : 2 * i + 2, 3 + 2 * i : 3 + 2 * i + 2] = jacobians_landmark[i]
+
+    R = block_diag(*[measurement_cov] * n)
+    return H @ joint_covariance @ H.T + R
 
 
 # ---------------------------------------------------------------------------
