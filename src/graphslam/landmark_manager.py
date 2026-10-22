@@ -77,8 +77,11 @@ class TentativeLandmark:
         bool
             Whether the landmark should be promoted into the graph.
         """
-        # TODO(h): count supporting observations inside the window and compare to M.
-        raise NotImplementedError("Task 1 (h)")
+        hits = 0
+        for obs in self.supporting_observations:
+            if current_step - N + 1 <= obs.step <= current_step:
+                hits += 1
+        return hits >= M
 
 
 def get_tentative_landmark_manager(config: SlamConfig) -> TentativeLandmarkManager:
