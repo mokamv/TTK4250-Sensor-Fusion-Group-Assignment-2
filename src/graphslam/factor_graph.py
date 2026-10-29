@@ -91,7 +91,6 @@ def add_odometry_factor(
     relative_pose_cov : np.ndarray, shape=(3, 3)
         Covariance of that increment, in the tangent space of ``relative_pose``.
     """
-    # TODO(c2): add a BetweenFactorPose2 with a full-covariance Gaussian noise model.
     noise_model = gtsam.noiseModel.Gaussian.Covariance(relative_pose_cov)
 
     factor = gtsam.BetweenFactorPose2(key_previous,
